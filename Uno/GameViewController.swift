@@ -73,12 +73,11 @@ class GameViewController: UIViewController {
     //TODO: Fix wild bug for not updating current card image when 
     //      computer plays and chooses wild color
     //TODO: Fix memory leak
-    //TODO: Ask for smaller images
+    //TODO: Add animation for opponent draw
     
 
     override func viewDidLoad() {
         setup()
-
     }
     
     override func viewWillAppear(_ animated: Bool) {
@@ -340,9 +339,11 @@ class GameViewController: UIViewController {
     }
     
     func showWildOptions() {
-        drawCard.isEnabled = false
-        for image in wildImages {
-            view.addSubview(image)
+        if(currentPlayer == 0 && !(players[currentPlayer].hand.count == 1)) {
+            drawCard.isEnabled = false
+            for image in wildImages {
+                view.addSubview(image)
+            }
         }
     }
     
@@ -620,22 +621,24 @@ class GameViewController: UIViewController {
         choice.type = sender.titleLabel!.text!
         print("You attempted to play \(choice.type) against \(currentCard.type)")
         if(canPlay(choice) && currentPlayer == 0) {
+            
             sender.removeFromSuperview()
-            DispatchQueue.global(priority: DispatchQueue.GlobalQueuePriority.default).async {
+            DispatchQueue.global(qos: .userInitiated).async {
                 DispatchQueue.main.async {
                     self.animateCard(globalPoint!, endPoint:self.playedCard.frame.origin, image: UIImage(named: choice.type)!)
                     self.playUserCard(choice)
                     self.removeCard(sender, choice: choice)
-                    if(self.checkVictory()) {
-                        self.victory()
-                    }
                 }
                 while(!self.madeChoice){
                     // This while loop hurts my soul
                 }
-                self.nextTurn()
-                self.madeChoice = false
-                self.enemyTurn()
+                if(self.checkVictory()) {
+                    self.victory()
+                } else {
+                    self.nextTurn()
+                    self.madeChoice = false
+                    self.enemyTurn()
+                }
             }
             
             print("User is playing \(choice.type)")
@@ -710,18 +713,17 @@ class GameViewController: UIViewController {
                         } else {
                             self.madeChoice = true
                         }
+                        self.resetWildCards()
                 })
-                
             }
             index+=1
         }
-        resetWildCards()
     }
     
     // Set the next player to the proper index after user turn
     func nextTurn() {
         if numberOfOpponents == 1 {
-            if skipped || wasReverse || wasDraw{
+            if skipped || wasReverse || wasDraw {
                 skipped = false
                 wasDraw = false
                 wasReverse = false
@@ -912,10 +914,7 @@ class GameViewController: UIViewController {
             print("Current Player is now \(currentPlayer)")
         }
         DispatchQueue.main.async {
-            self.edit(self.scroll)
-            if(self.checkVictory()) {
-                self.victory()
-            }
+            self.checkVictory() ? self.victory() : self.edit(self.scroll)
         }
         
     }
@@ -971,8 +970,7 @@ extension GameViewController: UITextFieldDelegate {
         } else if textField.text! == "dismiss"{
             print("Dismissing view")
             dismiss(animated: true, completion: nil)
-        }
-        else {
+        } else {
             print("Could not find asset named \(textField.text!)")
         }
         return true
