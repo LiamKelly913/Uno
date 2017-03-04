@@ -72,7 +72,6 @@ class GameViewController: UIViewController {
     
     //TODO: Fix wild bug for not updating current card image when 
     //      computer plays and chooses wild color
-    //TODO: Fix memory leak
     //TODO: Add animation for opponent draw
     
 
@@ -278,7 +277,7 @@ class GameViewController: UIViewController {
         wildImages[3].frame.origin = CGPoint(x: x2, y: y2)
     }
     
-    //MARK: UI Updates
+    //MARK: UI Functions
     
     func edit(_ view: UIScrollView) {
         view.backgroundColor = UIColor.clear
@@ -367,21 +366,23 @@ class GameViewController: UIViewController {
         var index = 0
         var targetIndex = 0
         UIView.animate(withDuration: 0.5, animations: {
+            // Readjust the scrollview width
             self.scroll.contentSize.width = self.xPos
             for card in self.players[0].hand {
+                // Match the chosen card with the image by comparing x coordinates
                 if(card.xVal == choice.xVal) {
                     targetIndex = index
                 }
+                // Animate cards sliding into new position after card has been removed
                 if card.xVal >= choice.xVal {
                     let endPoint = CGFloat(card.image.frame.origin.x - (self.iWidth + 2*self.buffer))
                     card.image.frame.origin.x = endPoint
                     card.xVal = card.image.frame.origin.x
                 }
                 index+=1
-            }
+            } // Remove the card from the player's hand
             }, completion: { finished in
                 self.players[0].hand.remove(at: targetIndex)
-
         })
     }
     
@@ -498,6 +499,7 @@ class GameViewController: UIViewController {
         deck.remove(at: r)
     }
     
+    // Checks if a specified card can be played against the current card
     func canPlay(_ choice:Card) -> Bool {
         let currName = currentCard.type
         let choiceName = choice.type
@@ -512,6 +514,7 @@ class GameViewController: UIViewController {
         return playable
     }
     
+    // Checks if a specified card is Draw2 or Draw4
     func isDraw(_ word:String) -> Bool {
         let last = String(word.characters.suffix(3))
         if(last == "aw4" || last == "aw2") {
@@ -522,6 +525,7 @@ class GameViewController: UIViewController {
         }
     }
     
+    // Returns true if two cards share a last letter
     func checkLastLetter(_ first: String, second: String) -> Bool {
         if (lastLetter(first) == lastLetter(second)) {
             return true
@@ -530,10 +534,12 @@ class GameViewController: UIViewController {
         }
     }
     
+    // Returns the first letter of a string (for readability in bigger blocks of code)
     func firstLetter(_ string:String) -> String {
         return String(string.characters.prefix(1))
     }
     
+    // Returns the last letter of a string (for readability in bigger blocks of code)
     func lastLetter(_ string:String) -> String {
         return String(string.characters.suffix(1))
     }
@@ -583,12 +589,13 @@ class GameViewController: UIViewController {
         return choice
     }
     
+    // Chooses a random color from the color array
     func randomColor() -> String {
         let r = Int(arc4random_uniform(4))
         return colorArray[r]
     }
     
-    
+    // Returns true if any player has 0 cards in their hand
     func checkVictory() -> Bool {
         var victory = false
         for player in players {
@@ -607,6 +614,7 @@ class GameViewController: UIViewController {
         return victory
     }
     
+    // Shows the Play Again button
     func victory() {
         playAgainButton.isHidden = false
     }
@@ -614,37 +622,36 @@ class GameViewController: UIViewController {
     //MARK: Player logic
     
     func chooseUserCard(_ sender: UIButton) {
-        // specifying toView as nil defaults the coordinates to the window base coordinates
+        // globalPoint is used to reference the card's position in relation to the screen, not the view it is contained in
         let globalPoint = sender.superview?.convert(sender.frame.origin, to: nil)
         let choice:Card = Card()
         choice.xVal = sender.frame.origin.x
         choice.type = sender.titleLabel!.text!
         print("You attempted to play \(choice.type) against \(currentCard.type)")
         if(canPlay(choice) && currentPlayer == 0) {
-            
             sender.removeFromSuperview()
             DispatchQueue.global(qos: .userInitiated).async {
+                // Update UI on separate thread
                 DispatchQueue.main.async {
-                    self.animateCard(globalPoint!, endPoint:self.playedCard.frame.origin, image: UIImage(named: choice.type)!)
+                    self.animateCard(globalPoint!, endPoint: self.playedCard.frame.origin, image: UIImage(named:choice.type)!)
                     self.playUserCard(choice)
                     self.removeCard(sender, choice: choice)
                 }
-                while(!self.madeChoice){
-                    // This while loop hurts my soul
-                }
+                print("User is playing \(choice.type)")
+                while(!self.madeChoice){}
                 if(self.checkVictory()) {
                     self.victory()
                 } else {
                     self.nextTurn()
-                    self.madeChoice = false
                     self.enemyTurn()
                 }
+                self.madeChoice = false
             }
-            
-            print("User is playing \(choice.type)")
         }
     }
-    
+
+    // Add played card to played deck, check the type of card to act
+    // accordingly (Wild, Draw, Reverse, Skip)
     func playUserCard(_ choice:Card) {
         currentCard = choice
         oldDeck.append(choice)
@@ -678,7 +685,7 @@ class GameViewController: UIViewController {
         }
     }
     
-    // action attached to the buttons hidden over enemy hands to be called on when a draw card is played
+    // action attached to the buttons hidden over enemy hands to be called on when the player plays a draw card
     func playerGivesCards(_ sender:UIButton) {
         var index = 1
         for player in enemyImages {
@@ -691,7 +698,6 @@ class GameViewController: UIViewController {
         }
     }
     
-    //TODO: Fix wild card animation
     // action attached to the generic wild colors when displayed
     func playerChoosesWild(_ sender:UIButton) {
         var index = 0
@@ -776,20 +782,6 @@ class GameViewController: UIViewController {
         while(didExhaust && !played) {
             print("Enemy player is drawing a card")
             giveCard(player)
-            
-            //TODO: Animate card being given to specified player
-//            let start:CGPoint = drawCard.frame.origin
-//            let endPoint:CGPoint = enemyImages[userIndex-1].frame.origin
-//            imageToAnimate.frame.origin = start
-//            dispatch_async(dispatch_get_main_queue()) {
-//                UIView.animateWithDuration(0.4, delay: 0.0, options: .CurveEaseInOut, animations: {
-//                    self.imageToAnimate.frame.origin = endPoint
-//                    
-//                    }, completion: { finished in
-//                        self.imageToAnimate.removeFromSuperview()
-//                        sleep(1)
-//                })
-//            }
             let lastCard = player.hand[player.hand.count-1]
             if(canPlay(lastCard)) {
                 sleep(2)
@@ -845,7 +837,6 @@ class GameViewController: UIViewController {
         DispatchQueue.main.async {
                 self.animateCard(self.enemyImages[userIndex-1].frame.origin, endPoint: self.playedCard.frame.origin, image: UIImage(named:choice.type)!)
         }
-        
     }
     
     
@@ -853,19 +844,15 @@ class GameViewController: UIViewController {
     
     // Iterate through opponent turns
     func enemyTurn() {
-
         DispatchQueue.main.async {
             self.removeEdit(self.scroll)
         }
-        
-        
         while(!checkVictory() && currentPlayer != 0) {
             let currentHighlight = currentPlayer
             DispatchQueue.main.async {
                 self.highlightOpponent()
             }
             doMove(currentPlayer)
-            
             if(numberOfOpponents == 1) {
                 if(skipped || wasDraw || wasReverse) {
                     skipped = false
@@ -875,7 +862,6 @@ class GameViewController: UIViewController {
                     currentPlayer = 0
                 }
             }
-            
             else if(!reverse) {
                 if(skipped) {
                     if (currentPlayer == numberOfOpponents-1) {
@@ -893,9 +879,7 @@ class GameViewController: UIViewController {
                         currentPlayer+=1
                     }
                 }
-                
             } else {
-        
                 if(skipped) {
                     if(currentPlayer == 1) {
                         currentPlayer = numberOfOpponents
@@ -906,7 +890,6 @@ class GameViewController: UIViewController {
                 } else {
                     currentPlayer-=1
                 }
-  
             }
             DispatchQueue.main.async {
                 self.removeHighlight(currentHighlight)
