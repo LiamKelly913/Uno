@@ -83,8 +83,6 @@ class GameViewController: UIViewController {
         updateStartingHand()
     }
     
-    
-    
     //MARK: Setup
     
     func setup() {
